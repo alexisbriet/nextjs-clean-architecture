@@ -73,6 +73,7 @@ npm run dev
 npm run lint
 npm run build
 npm run make --module invoices
+npm run make:prisma -- --dry-run
 npm run check:modules
 ```
 
@@ -109,6 +110,15 @@ Verifier les modules generes:
 
 ```bash
 npm run check:modules
+```
+
+Generer les modeles Prisma manquants depuis les entities generees:
+
+```bash
+npm run make:prisma -- --dry-run
+npm run make:prisma
+npx prisma format
+npx prisma generate
 ```
 
 ## Stripe

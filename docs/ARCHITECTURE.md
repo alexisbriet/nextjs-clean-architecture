@@ -701,6 +701,33 @@ Les modules custom comme `projects` ou `billing` peuvent etre signales en warnin
 npm run check:modules -- --strict-generated
 ```
 
+## Generer Prisma
+
+La commande suivante lit les entities generees dans `src/modules/*/domain/*.entity.ts` et propose les modeles Prisma manquants:
+
+```bash
+npm run make:prisma -- --dry-run
+```
+
+Pour appliquer:
+
+```bash
+npm run make:prisma
+npx prisma format
+npx prisma generate
+```
+
+La commande est volontairement prudente:
+
+- elle ajoute uniquement les modeles absents;
+- elle ne modifie pas les modeles Prisma existants;
+- elle ignore les modules custom connus comme `billing` et `projects`;
+- elle genere les champs scalaires simples;
+- elle genere `ManyToOne` via `fieldId` + `@relation`;
+- elle genere `ManyToMany` sous forme de relation Prisma implicite `Target[]`.
+
+Les choix avances restent a ajuster manuellement dans `prisma/schema.prisma`: `@unique`, `@@index`, `onDelete`, `Decimal`, table pivot explicite, noms de relations inverses.
+
 Pour ajouter une feature manuellement:
 
 1. Creer `src/modules/billing`.

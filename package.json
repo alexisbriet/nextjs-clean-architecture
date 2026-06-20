@@ -9,6 +9,7 @@
     "lint": "eslint",
     "make": "node scripts/make-modules.mjs",
     "make:module": "node scripts/make-modules.mjs module",
+    "make:prisma": "node scripts/make-prisma.mjs",
     "check:modules": "node scripts/check-modules.mjs"
   },
   "dependencies": {
