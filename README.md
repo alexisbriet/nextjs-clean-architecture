@@ -73,6 +73,7 @@ npm run dev
 npm run lint
 npm run build
 npm run make --module invoices
+npm run check:modules
 ```
 
 Generer un module:
@@ -103,6 +104,12 @@ npm run make -- module posts title:string author:ManyToOne:User tags:ManyToMany:
 ```
 
 Le generateur ajoute alors `authorId` pour le `ManyToOne` et `tagIds` pour le `ManyToMany`.
+
+Verifier les modules generes:
+
+```bash
+npm run check:modules
+```
 
 ## Stripe
 

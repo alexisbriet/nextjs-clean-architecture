@@ -679,6 +679,28 @@ Pour les relations, le generateur reste volontairement neutre cote Prisma:
 
 Le repository Prisma genere reste un stub a completer apres l'ajout du modele et des relations dans `prisma/schema.prisma`.
 
+## Verifier les modules
+
+La commande suivante parcourt `src/modules` et verifie les modules generes:
+
+```bash
+npm run check:modules
+```
+
+Elle controle notamment:
+
+- les fichiers attendus d'un module genere;
+- la presence de `Entity`, `NewEntity`, DTO, use cases, actions, queries;
+- la coherence des champs scalaires;
+- la coherence des relations `ManyToOne` et `ManyToMany`;
+- les exports publics dans `index.ts`.
+
+Les modules custom comme `projects` ou `billing` peuvent etre signales en warning et ignores pour les controles stricts. Pour forcer les controles stricts sur tous les modules:
+
+```bash
+npm run check:modules -- --strict-generated
+```
+
 Pour ajouter une feature manuellement:
 
 1. Creer `src/modules/billing`.
