@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js SaaS Clean Architecture
 
-## Getting Started
+Base Next.js 16 orientee SaaS avec une separation stricte entre le router, le metier, l'infrastructure et les points d'entree presentation.
 
-First, run the development server:
+La documentation complete de l'architecture est ici: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Structure
+
+```txt
+src/
+  app/                         # Router Next.js uniquement
+    dashboard/projects/page.tsx # Page serveur qui consomme le module projects
+  modules/
+    projects/
+      domain/                  # Entites, contrats, regles metier pures
+      application/             # Cas d'usage et DTO
+      infrastructure/          # Adapters techniques, Prisma ici
+      presentation/            # Server Actions et queries appelees par app/
+  infrastructure/              # Services transverses concrets
+  shared/                      # Erreurs/types partages sans dependance framework
+  config/                      # Configuration applicative typee
+```
+
+Les modules metier ne doivent pas etre places dans `src/app/modules`; `src/app` reste reserve aux routes Next.js.
+
+## Regle de dependances
+
+Les dependances vont toujours vers le metier:
+
+```txt
+app -> modules/*/presentation -> application -> domain
+                         infrastructure -> domain
+```
+
+Le domaine ne connait ni Next.js, ni Prisma, ni React. Les cas d'usage recoivent leurs ports (`ProjectRepository`) et retournent des DTO adaptes a l'interface.
+
+## Module exemple: projects
+
+Le module `projects` montre le flux complet d'une feature SaaS multi-tenant:
+
+- `domain/project.rules.ts`: quotas par plan, validation du nom, slug.
+- `domain/project.repository.ts`: contrat attendu par l'application.
+- `application/use-cases`: orchestration des regles metier.
+- `infrastructure/prisma-project.repository.ts`: implementation Prisma du port.
+- `presentation/actions.ts`: Server Action Next.js avec `use server`.
+- `presentation/queries.ts`: query serveur pour les pages.
+
+La page `/dashboard/projects` appelle `connection()` avant Prisma afin d'etre rendue a la requete, pas pendant le build.
+
+## Prisma
+
+Le schema contient les bases SaaS:
+
+- `User`
+- `Workspace`
+- `Membership`
+- `Project`
+- `Subscription`
+- `StripeEvent`
+- `Plan`
+- `MemberRole`
+
+Apres une modification du schema:
+
+```bash
+npx prisma generate
+```
+
+## Commandes
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stripe
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Le module `src/modules/billing` contient une integration Stripe decouplee:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Checkout Session pour demarrer un abonnement.
+- Billing Portal pour gerer l'abonnement.
+- Webhook `src/app/api/stripe/webhook/route.ts` pour synchroniser Prisma.
+- Table `StripeEvent` pour eviter de traiter deux fois le meme webhook.
 
-## Learn More
+Variables a configurer:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+STRIPE_SECRET_KEY="sk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+STRIPE_PRO_PRICE_ID="price_..."
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Endpoint webhook local:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
 
-## Deploy on Vercel
+## Prochaines fondations utiles
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Remplacer `src/infrastructure/auth/session.ts` par une vraie session auth.
+- Ajouter des tests unitaires sur `domain/` et `application/`.
+- Ajouter les migrations Prisma selon la base cible.
