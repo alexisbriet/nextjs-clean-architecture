@@ -15,6 +15,16 @@ const dryRun = process.argv.includes("--dry-run");
 const root = process.cwd();
 const modulesRoot = path.join(root, "src", "modules");
 const schemaPath = path.join(root, "prisma", "schema.prisma");
+const relationTargetAliases = new Map([
+  ["manager", "User"],
+  ["owner", "User"],
+  ["staff", "User"],
+  ["phase", "TournamentPhase"],
+  ["phas", "TournamentPhase"],
+  ["teamone", "Team"],
+  ["teamtwo", "Team"],
+  ["winner", "Team"],
+]);
 
 const schema = fs.readFileSync(schemaPath, "utf8");
 const existingModels = getExistingModels(schema);
@@ -106,6 +116,7 @@ function buildModel(modelName, fields, inverses = []) {
     "  id        String   @id @default(cuid())",
   ];
   const indexes = [];
+  const relationTargetCounts = getRelationTargetCounts(fields);
 
   fields.forEach((field) => {
     if (field.kind === "scalar") {
@@ -114,9 +125,17 @@ function buildModel(modelName, fields, inverses = []) {
     }
 
     if (field.kind === "manyToOne") {
+      const target = resolveRelationTarget(field.target);
+      const relationName = relationTargetCounts.get(target) > 1 ? buildRelationName(modelName, field.name) : null;
+      const relationArgs = [
+        relationName ? `"${relationName}"` : null,
+        `fields: [${field.name}Id]`,
+        "references: [id]",
+      ].filter(Boolean);
+
       lines.push(`  ${`${field.name}Id`.padEnd(9)} String${field.optional ? "?" : ""}`);
       lines.push(
-        `  ${field.name.padEnd(9)} ${resolveRelationTarget(field.target)}${field.optional ? "?" : ""} @relation(fields: [${field.name}Id], references: [id])`,
+        `  ${field.name.padEnd(9)} ${target}${field.optional ? "?" : ""} @relation(${relationArgs.join(", ")})`,
       );
       indexes.push(`  @@index([${field.name}Id])`);
       return;
@@ -189,6 +208,12 @@ function getKnownModelNames() {
 }
 
 function resolveRelationTarget(target) {
+  const aliasTarget = relationTargetAliases.get(target.toLowerCase());
+
+  if (aliasTarget && knownModelNames.has(aliasTarget)) {
+    return aliasTarget;
+  }
+
   const pascalTarget = toPascalCase(target);
 
   if (knownModelNames.has(pascalTarget)) {
@@ -220,6 +245,8 @@ function getInverseRelations(models) {
   const inverses = new Map();
 
   models.forEach((model) => {
+    const relationTargetCounts = getRelationTargetCounts(model.fields);
+
     model.fields
       .filter((field) => field.kind === "manyToOne" || field.kind === "manyToMany")
       .forEach((field) => {
@@ -230,9 +257,12 @@ function getInverseRelations(models) {
         }
 
         const existing = inverses.get(target) ?? [];
+        const hasMultipleRelationsToTarget = relationTargetCounts.get(target) > 1;
         existing.push({
-          name: pluralize(lowerFirst(model.name)),
-          type: `${model.name}[]`,
+          name: hasMultipleRelationsToTarget
+            ? `${field.name}${pluralize(model.name)}`
+            : pluralize(lowerFirst(model.name)),
+          type: `${model.name}[]${hasMultipleRelationsToTarget ? ` @relation("${buildRelationName(model.name, field.name)}")` : ""}`,
         });
         inverses.set(target, dedupeInverseRelations(existing));
       });
@@ -256,6 +286,23 @@ function getRelationWarnings(models) {
 
 function dedupeInverseRelations(inverses) {
   return [...new Map(inverses.map((inverse) => [inverse.name, inverse])).values()];
+}
+
+function getRelationTargetCounts(fields) {
+  const counts = new Map();
+
+  fields
+    .filter((field) => field.kind === "manyToOne")
+    .forEach((field) => {
+      const target = resolveRelationTarget(field.target);
+      counts.set(target, (counts.get(target) ?? 0) + 1);
+    });
+
+  return counts;
+}
+
+function buildRelationName(modelName, fieldName) {
+  return `${modelName}${toPascalCase(fieldName)}`;
 }
 
 function normalizeModelName(value) {
