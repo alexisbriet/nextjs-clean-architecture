@@ -72,7 +72,37 @@ npx prisma generate
 npm run dev
 npm run lint
 npm run build
+npm run make --module invoices
 ```
+
+Generer un module:
+
+```bash
+npm run make --module invoices
+npm run make --entity tasks
+npm run make -- module invoices number:string total:number dueAt:Date paid:boolean
+npm run make:module -- contacts firstName:string lastName:string email:string
+npm run make -- module billing --dry-run
+```
+
+Avec `npm run make --module invoices`, la commande demande en CLI si tu veux creer des properties, puis te demande le nom, le type et si le champ est optionnel.
+
+Si le module existe deja, la meme commande ajoute les nouvelles properties sans supprimer les anciennes:
+
+```bash
+npm run make --module invoices dueAt:Date=optional customer:ManyToOne:User
+```
+
+Types supportes par le generateur: `string`, `number`, `boolean`, `Date`.
+Pour un champ optionnel, utilise `=optional`, par exemple `description:string=optional`.
+
+Relations supportees:
+
+```bash
+npm run make -- module posts title:string author:ManyToOne:User tags:ManyToMany:Tag
+```
+
+Le generateur ajoute alors `authorId` pour le `ManyToOne` et `tagIds` pour le `ManyToMany`.
 
 ## Stripe
 

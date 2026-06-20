@@ -610,7 +610,76 @@ Cela evite les chemins relatifs fragiles comme `../../../../`.
 
 ## Ajouter un nouveau module
 
-Pour ajouter une feature `billing`:
+La commande recommandee est:
+
+```bash
+npm run make --module invoices
+```
+
+La commande est interactive: elle demande si tu veux creer des properties, puis te demande pour chaque property:
+
+- son nom;
+- son type;
+- si elle est optionnelle.
+
+Alias disponible pour creer explicitement une entite:
+
+```bash
+npm run make --entity invoices
+```
+
+Mode non interactif:
+
+```bash
+npm run make -- module invoices number:string total:number dueAt:Date paid:boolean
+npm run make:module -- contacts firstName:string lastName:string email:string
+npm run make -- module posts title:string author:ManyToOne:User tags:ManyToMany:Tag
+```
+
+Options:
+
+```bash
+npm run make -- module billing --dry-run
+npm run make -- module billing --force
+```
+
+La commande cree une structure compilable et n'ecrase pas les fichiers existants sans `--force`.
+
+Si le module existe deja, la commande passe en mode mise a jour: elle relit les properties existantes dans `New<Entity>`, fusionne les nouvelles properties, puis regenere les fichiers du module.
+
+Exemple:
+
+```bash
+npm run make --module invoices dueAt:Date=optional customer:ManyToOne:User
+```
+
+Dans cet exemple, les properties existantes de `Invoice` sont conservees et `dueAt` / `customerId` sont ajoutees.
+
+Types de champs supportes:
+
+- `string`
+- `number`
+- `boolean`
+- `Date`
+- `ManyToOne:Entity`
+- `ManyToMany:Entity`
+
+Pour un champ optionnel, utilise `=optional`, par exemple:
+
+```bash
+npm run make -- module posts title:string excerpt:string=optional published:boolean
+```
+
+La syntaxe quotee `"excerpt:string?"` fonctionne aussi, mais `=optional` est plus fiable avec zsh.
+
+Pour les relations, le generateur reste volontairement neutre cote Prisma:
+
+- `author:ManyToOne:User` genere `authorId` et une reference optionnelle `author`.
+- `tags:ManyToMany:Tag` genere `tagIds` et une reference optionnelle `tags`.
+
+Le repository Prisma genere reste un stub a completer apres l'ajout du modele et des relations dans `prisma/schema.prisma`.
+
+Pour ajouter une feature manuellement:
 
 1. Creer `src/modules/billing`.
 2. Ajouter `domain/` avec entites, regles et ports.
